@@ -3,7 +3,8 @@ from pokemonterminal.database import Database, Pokemon
 
 
 class Filter(Action):
-    POKEMON_LIST = Database().get_all()
+    DATABASE = Database()
+    POKEMON_LIST = DATABASE.get_all()
     filtered_list = [p for p in POKEMON_LIST]
     FILTERS = []
     EXAMPLE_VAL = None
@@ -23,7 +24,13 @@ class NameFilter(Filter):
     EXAMPLE_VAL = 'bulb'
 
     def matches(self, pokemon: Pokemon, value: str):
-        return value in pokemon.get_name()
+        # Keep legacy substring behavior for Latin names.
+        if value.isascii():
+            return value in pokemon.get_name()
+        if Filter.DATABASE.pokemon_name_exists(value):
+            return Filter.DATABASE.get_pokemon_by_name(value).get_name() == \
+                pokemon.get_name()
+        return False
 
 
 class RegionFilter(Filter):

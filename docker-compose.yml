@@ -1,0 +1,7 @@
+services:
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /app
+    command: pytest -q

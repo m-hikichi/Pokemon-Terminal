@@ -74,6 +74,7 @@ class Database:
             self.__pokemon_type_dictionary[pkmn_t] = []
         self.__load_data()
         self.__load_extra()
+        self.__load_japanese_aliases()
 
     def __str__(self):
         return "\n".join(str(element) for element in self.__pokemon_list)
@@ -83,7 +84,7 @@ class Database:
         if isinstance(pokemon, int) or str(pokemon).isdigit():
             return self.pokemon_id_exists(int(pokemon))
         elif isinstance(pokemon, str):
-            return self.__pokemon_dictionary.get(pokemon) is not None
+            return self.pokemon_name_exists(pokemon)
         else:
             return self.pokemon_name_exists(pokemon.get_name())
 
@@ -160,7 +161,9 @@ class Database:
 
     def pokemon_name_exists(self, name):
         # Check for Pokemon by Name.
-        return name.lower() in self.__pokemon_dictionary
+        if not isinstance(name, str):
+            return False
+        return self.__normalize_name(name) in self.__pokemon_dictionary
 
     def get_pokemon(self, pokemon):
         # Get a Pokemon by name or ID.
@@ -170,7 +173,7 @@ class Database:
             raise Exception("The parameter Pokemon must be of type integer" +
                             " or string.")
         if isinstance(pokemon, str):
-            pokemon = pokemon.lower()
+            pokemon = self.__normalize_name(pokemon)
         if pokemon not in self:
             raise Exception("No such Pokemon in the database.")
         if isinstance(pokemon, int) or str(pokemon).isdigit():
@@ -182,9 +185,10 @@ class Database:
         # Get a Pokemon by its name.
         if not isinstance(name, str):
             raise TypeError("The type of name must be a string.")
-        if not self.pokemon_name_exists(name):
+        normalized_name = self.__normalize_name(name)
+        if not self.pokemon_name_exists(normalized_name):
             raise Exception("No such Pokemon in the database.")
-        return self.__pokemon_dictionary[name]
+        return self.__pokemon_dictionary[normalized_name]
 
     def get_pokemon_by_id(self, identifier):
         # Get a Pokemon by its ID.
@@ -228,7 +232,8 @@ class Database:
                     self.__pokemon_type_dictionary[pkmn_type_snd]\
                         .append(pokemon)
                 self.__pokemon_list.append(pokemon)
-                self.__pokemon_dictionary[pokemon.get_name()] = pokemon
+                self.__pokemon_dictionary[self.__normalize_name(
+                    pokemon.get_name())] = pokemon
 
     def __load_extra(self):
         """Load all the file names of the images in the Extra folder."""
@@ -250,7 +255,32 @@ class Database:
                                     + "the file " + str(name) + ".jpg in the "
                                     + "folder 'Extra' must be changed.")
                 self.__pokemon_list.append(pokemon)
-                self.__pokemon_dictionary[pokemon.get_name()] = pokemon
+                self.__pokemon_dictionary[self.__normalize_name(
+                    pokemon.get_name())] = pokemon
+
+    def __load_japanese_aliases(self):
+        """
+        Load Japanese aliases from Data/pokemon_ja.txt.
+        Each line must match the Pokemon with the same 1-based ID.
+        """
+        aliases_path = os.path.join(self.directory, "Data", "pokemon_ja.txt")
+        if not os.path.isfile(aliases_path):
+            return
+
+        with open(aliases_path, "r", encoding="utf-8") as aliases_file:
+            for idx, line in enumerate(aliases_file, start=1):
+                alias = self.__normalize_name(line)
+                if not alias:
+                    continue
+                if idx > self.MAX_ID:
+                    break
+
+                pokemon = self.get_pokemon_by_id(idx)
+                existing = self.__pokemon_dictionary.get(alias)
+                if existing is not None and existing != pokemon:
+                    raise Exception("Duplicate localized names detected: "
+                                    + alias)
+                self.__pokemon_dictionary[alias] = pokemon
 
     def __determine_region(self, identifier):
         """Determine which region a Pokemon is from."""
@@ -282,3 +312,9 @@ class Database:
                        "kalos": "VI - Kalos"}
         suffix = suffix_dict.get(self.__determine_region(identifier))
         return os.path.join(self.directory, "Images", f"Generation {suffix}")
+
+    @staticmethod
+    def __normalize_name(name):
+        if not isinstance(name, str):
+            return name
+        return name.strip().lower()

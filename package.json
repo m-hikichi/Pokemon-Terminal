@@ -9,7 +9,7 @@
   "scripts": {},
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/LazoCoder/Pokemon-Terminal.git"
+    "url": "git+https://github.com/m-hikichi/Pokemon-Terminal.git"
   },
   "keywords": [
     "pokemon",
@@ -17,10 +17,10 @@
     "theme",
     "themes"
   ],
-  "author": "Lazo (https://github.com/LazoCoder)",
+  "author": "m-hikichi (https://github.com/m-hikichi)",
   "license": "GPL-3.0",
   "bugs": {
-    "url": "https://github.com/LazoCoder/Pokemon-Terminal/issues"
+    "url": "https://github.com/m-hikichi/Pokemon-Terminal/issues"
   },
-  "homepage": "https://github.com/LazoCoder/Pokemon-Terminal#readme"
+  "homepage": "https://github.com/m-hikichi/Pokemon-Terminal#readme"
 }

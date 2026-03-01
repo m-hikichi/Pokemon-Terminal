@@ -60,6 +60,12 @@ def test_all(capsys):
         assert (region_info.last or '') in out   # convert None --> ''
 
 
+def test_japanese_exact_name(capsys):
+    main(['ピカチュウ', '-dr'])
+    out = capsys.readouterr()[0]
+    assert 'Pikachu' in out
+
+
 def test_region(capsys):
     regFilter = RegionFilter(None, None)
     noExtras = NonExtrasFilter(None, None)

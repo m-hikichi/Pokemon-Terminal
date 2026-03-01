@@ -38,9 +38,9 @@ from Kanto, Johto, Hoenn, Sinnoh, Unova, and Kalos.
 
 Change the Terminal Background & Desktop Wallpaper.
 Supports iTerm2, Terminology, Tilix and ConEmu.""",
-    url="https://github.com/LazoCoder/Pokemon-Terminal",
+    url="https://github.com/m-hikichi/Pokemon-Terminal",
 
-    author="LazoCoder",
+    author="m-hikichi",
     author_email="",
 
     license="GPLv3",

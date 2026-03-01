@@ -10,4 +10,4 @@ Supports iTerm2, Terminology, Tilix and ConEmu.
 
 
 __version__ = "1.3.0"
-__author__ = "LazoCoder"
+__author__ = "m-hikichi"

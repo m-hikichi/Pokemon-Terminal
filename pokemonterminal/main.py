@@ -24,8 +24,11 @@ def main(argv=None):
     try:
         options.id = int(options.id)
     except ValueError:
-        options.name = options.id.lower()
+        options.name = str(options.id).strip().lower()
         options.id = 0
+        if Filter.DATABASE.pokemon_name_exists(options.name):
+            options.name = Filter.DATABASE.get_pokemon_by_name(
+                options.name).get_name()
         Filter.filtered_list = [
             x for x in Filter.filtered_list if options.name == x.get_name()
         ]

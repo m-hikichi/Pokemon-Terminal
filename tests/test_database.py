@@ -160,3 +160,13 @@ def test_ids():
 def test_thresholds():
     db = Database()
     assert all(isinstance(p.get_dark_threshold(), float) for p in db.get_all())
+
+
+def test_case_insensitive_name_lookup():
+    db = Database()
+    assert db.get_pokemon("Pikachu").get_name() == "pikachu"
+
+
+def test_japanese_name_lookup():
+    db = Database()
+    assert db.get_pokemon("ピカチュウ").get_name() == "pikachu"

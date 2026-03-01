@@ -15,7 +15,7 @@ _filters_group = parser.add_argument_group(
 _filters_group.add_argument(
     '-n',
     '--name',
-    help='Filter by pokemon which name contains NAME',
+    help='Filter by pokemon name (substring match for English, exact match for localized names)',
     action=filters.NameFilter,
     type=str.lower)
 _filters_group.add_argument(
@@ -104,7 +104,7 @@ either.add_argument(
     action='store_true')
 either.add_argument(
     'id',
-    help='Specify the wanted pokemon ID or the exact (case insensitive)' +
-    ' name',
+    help='Specify the wanted pokemon ID or the exact (case insensitive) name'
+    ' (localized names are also supported)',
     nargs='?',
     default=0, const=0)
