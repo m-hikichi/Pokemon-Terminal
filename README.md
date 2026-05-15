@@ -46,11 +46,51 @@
 
 ## インストール
 
+### uvでインストール
+
+`pokemon` コマンドを普段使いする場合は、`uv tool install` で専用の隔離環境にインストールできます。
+
+`uv` が未インストールの場合は、先にインストールします。
+
+Windows PowerShell:
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+macOS / Linux:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+このリポジトリをGitHubから直接インストール:
+
+```bash
+uv tool install "git+https://github.com/m-hikichi/Pokemon-Terminal.git"
+```
+
+インストール済みのツールを更新する場合:
+
+```bash
+uv tool upgrade pokemon-terminal
+```
+
+### pipでインストール
+
 ```bash
 pip install "git+https://github.com/m-hikichi/Pokemon-Terminal.git"
 ```
 
 ## アンインストール
+
+uvでインストールした場合:
+
+```bash
+uv tool uninstall pokemon-terminal
+```
+
+pipでインストールした場合:
 
 ```bash
 pip uninstall pokemon-terminal
