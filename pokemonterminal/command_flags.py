@@ -58,7 +58,7 @@ parser = argparse.ArgumentParser(
            '  pokemon 25                   ID で指定\n'
            '  pokemon pikachu              英語名で指定\n'
            '  pokemon ピカチュウ             日本語名で指定\n'
-           '  pokemon -n bulb              英語名の部分一致で絞り込んでランダム\n'
+           '  pokemon -n saur              英語名の部分一致で絞り込んでランダム\n'
            '  pokemon -r kanto -t fire     カントー地方のほのおタイプからランダム\n'
            '  pokemon -l                   明るい画像だけからランダム\n'
            '  pokemon -w -r johto          ジョウト地方のポケモンを壁紙に設定\n'
@@ -101,7 +101,8 @@ _filters_group.add_argument(
     '--name',
     metavar='NAME',
     help='名前で絞り込みます\n'
-         '英語名は部分一致（-n bulb → Bulbasaur, Ivysaur ...）\n'
+         '英語名は部分一致で絞り込めます\n'
+         '（-n saur → Bulbasaur, Ivysaur, Venusaur）\n'
          '日本語名は完全一致のみ（-n フシギダネ）',
     action=filters.NameFilter,
     type=str.lower)
