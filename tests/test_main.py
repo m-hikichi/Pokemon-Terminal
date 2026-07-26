@@ -48,8 +48,10 @@ def test_region_names(capsys):
     except SystemExit:
         pass  # It's supposed to crash.
     err: str = capsys.readouterr()[1].strip()
-    assert err.endswith(
-        "(choose from 'kanto', 'johto', 'hoenn', 'sinnoh', 'unova', 'kalos')")
+    # Python 3.12 dropped the quotes around the choices in this message, so
+    # assert on the content rather than on argparse's exact wording.
+    assert 'invalid choice' in err
+    assert all(region in err for region in Database.REGIONS)
 
 
 def test_all(capsys):
