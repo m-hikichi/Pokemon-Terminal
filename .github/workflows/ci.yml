@@ -17,10 +17,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # pip キャッシュは使わない。setup-python のキャッシュは requirements.txt か
+      # pyproject.toml を前提にしており、setup.py だけの構成では成立しないため。
+      # 依存も flake8 / pytest / psutil だけで、キャッシュの旨みが小さい。
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
 
       - name: Install
         run: pip install flake8 pytest --editable .
