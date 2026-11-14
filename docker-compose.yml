@@ -3,5 +3,5 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    working_dir: /app
-    command: pytest -q
+    working_dir: /checks
+    command: /opt/uv-tools/pokemon-terminal/bin/python -m pytest tests -q

@@ -2,12 +2,12 @@
 
 import collections
 import os
+import pokemonterminal
 
 from pokemonterminal.database import Pokemon
 
 
-SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-SCRIPT_DIR = os.path.join(SCRIPT_DIR, "pokemonterminal")
+SCRIPT_DIR = os.path.dirname(os.path.realpath(pokemonterminal.__file__))
 DATA_DIR = os.path.join(SCRIPT_DIR, 'Data')
 IMAGES_DIR = os.path.join(SCRIPT_DIR, 'Images')
 EXTRA_DIR = os.path.join(IMAGES_DIR, 'Extra')

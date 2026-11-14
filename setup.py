@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import sys
 import os
 from setuptools import setup, find_packages
 
@@ -70,9 +69,9 @@ Supports iTerm2, Terminology, Tilix and ConEmu.""",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
 
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7"
+        "Programming Language :: Python :: 3.10"
     ],
 
-    python_requires=">=3.7",
-    install_requires=(["psutil"] if sys.platform != "win32" else None)
+    python_requires=">=3.10",
+    install_requires=['psutil==7.2.2; sys_platform != "win32"']
 )
