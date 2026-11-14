@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Dockerfile の python:3.10 と揃えている。
+        python-version: ['3.10']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # pip キャッシュは使わない。setup-python のキャッシュは requirements.txt か
+      # pyproject.toml を前提にしており、setup.py だけの構成では成立しないため。
+      # 依存も flake8 / pytest / psutil だけで、キャッシュの旨みが小さい。
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: pip install flake8 pytest --editable .
+
+      - name: Lint (syntax errors and undefined names)
+        run: flake8 . --count --select=E9,F63,F72,F82 --show-source --statistics
+
+      - name: Lint (warnings only)
+        run: flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Test
+        run: pytest --capture=sys
