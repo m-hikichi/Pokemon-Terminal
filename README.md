@@ -206,7 +206,6 @@ docker compose run --rm test
 uv run --no-project --python 3.12 scripts/check_environment.py --audit
 ```
 
-検証時点の結果と残る指摘は[セキュリティ対応の検証記録](docs/security-remediation.md)を参照してください。
 導入済みの古いバージョンが自動で更新されるわけではないため、`uv tool upgrade pokemon-terminal` で更新してください。
 
 ## upstream の更新を取り込む（fork 運用）
