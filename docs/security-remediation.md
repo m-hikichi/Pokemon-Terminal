@@ -4,8 +4,8 @@
 
 ## 通常利用と検査の共通定義
 
-- サポート対象はREADMEのuv 0.13.8・Python 3.10による `uv tool install`。pip・npm・手動配置などの導入は対象外。
-- パッケージの最低Pythonバージョンを3.7から3.10に変更する。CIの検証対象は3.10とする。
+- サポート対象はREADMEのuv 0.13.8・Python 3.12による `uv tool install`。pip・npm・手動配置などの導入は対象外。
+- パッケージの最低Pythonバージョンを3.7から3.10に変更する。CIの検証対象は3.12とする。
 - 実行時依存は `setup.py` の `psutil==7.2.2; sys_platform != "win32"`。通常導入と検査で同じ定義を使用する。
 - ビルド依存は `pyproject.toml` に定義し、通常のuv導入にも適用する。
 - `scripts/check_environment.py` はREADMEと同じ非editableのuv tool導入を実行する。PRでは、Git URLの代わりに同じパッケージ内容を一時領域へコピーして導入する。
@@ -21,25 +21,38 @@
 | Linux: uv 0.13.8の通常導入、dry run、pip-audit、依存維持、テスト | 成功、34件成功。psutilに既知の脆弱性なし |
 | macOS | CI対象に追加。ローカルでは未実行 |
 | actionlint: CI・セキュリティ検査ワークフロー | 成功 |
-| Docker Compose: uvによる導入とインストール済みアプリのテスト | ビルド成功、34件成功 |
+| Docker Compose: Alpine公式Python 3.12とuvによる通常導入とインストール済みアプリのテスト | ビルド成功、34件成功。共有スクリプトによる依存監査・依存維持確認も成功 |
 
 上記はパッケージ依存とテストの結果であり、利用者のホストOS・Python本体・ターミナルの全脆弱性を検査した結果ではない。
 
 ## 開発コンテナ全体の検査
 
-Dockerは開発用の補助環境であり、通常利用のサポート対象ではない。
-slim化とDebianの更新を適用し、uvは同梱ライブラリの指摘を解消した0.13.8に更新する。
-ベースのpip・setuptools・wheelも `requirements-container.txt` の修正版以上へ更新する。
-これらのツールやensurepipを検査結果から消す目的で除去しない。直前の除去処理は撤回した。
+実際の開発環境を `alpine:3.23` とAlpine公式の `python3~3.12` パッケージ、uv 0.13.8で構築する。
+Python 3.12に固定し、uvによる別のPython配布物の自動取得を無効にする。
+通常のアプリ導入もREADME・CIと同じ `uv tool install --python 3.12` を使用する。
 
-Trivy v0.76.2で全重大度・未修正を含めて検査した結果:
+旧 `python:3.12-alpine` に付属するpipと古い同梱コードの代わりに、pipを別パッケージとして提供するAlpine公式Pythonを採用する。
+uvのみで導入を完結させるため、追加のpipは導入しない。不要になった `requirements-container.txt` を廃止する。
+インストール後のpip削除、SBOMの書き換え、VEX、例外登録、検査対象の除外、重大度の緩和は行わない。
+同じDockerfileをローカル開発・テスト・セキュリティ検査のすべてで使う。
 
-- Debian 13.7: 206件。HIGH 47件、MEDIUM 89件、LOW 65件、UNKNOWN 5件。すべて `FixedVersion` が空で、利用中のDebian向け修正版がデータベースに登録されていない。
-- Python: 3件。pip 26.3の同梱依存として記録されるsetuptools 70.3.0のCVE-2025-47273、CVE-2026-59890、GHSA-xmj3-9gf7-h52w。単独のsetuptoolsを84.2.1に更新してもpipの同梱分は変わらない。
-- uv・uvx: 指摘0件。
+検証した実体はAlpine 3.23.8、Python 3.12.16、uv 0.13.8。
 
-件数はパッケージと脆弱性の組み合わせであり、固有のCVE件数ではない。
-開発コンテナには計209件の指摘が残り、Docker監査は終了コード1になる。CI全体が合格したとは扱わない。
-除外や重大度の緩和は行っていない。日次の `container-security-report` で追跡し、Debian・pipの更新後に再検査する。
+| 検証 | 結果 |
+| --- | --- |
+| Docker Composeによるビルドと全テスト | 成功、34件成功 |
+| 同イメージでの通常uv導入・dry run・依存維持・全テスト | 成功、34件成功 |
+| 通常uv環境のpip-audit | 既知の脆弱性0件、終了コード0 |
+| Trivy v0.76.2によるイメージ全体の検査 | 検出0件、終了コード0 |
 
-pip同梱依存の根拠: https://github.com/pypa/pip/blob/main/src/pip/_vendor/vendor.txt
+Trivyは `os,library`、`UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL`、`ignore-unfixed=false`、`exit-code=1` で実行した。
+未加工のJSONレポートで次を確認した。
+
+- AlpineのOSパッケージ34件: 指摘0件。
+- Pythonパッケージ26件: 指摘0件。アプリ、psutil、pytest、flake8、ビルド時のsetuptoolsなどが検査対象に含まれる。
+- uv・uvxのRust依存: 指摘0件。
+
+元の3件も対象外扱いによるフィルタリングは行っていない。
+旧構成の調査履歴は [pipの調査記録](pip-vulnerability-assessment.md) に残すが、例外設定には使わない。
+これらはローカル検証の結果であり、GitHub上の最新実行結果を表すものではない。macOSはGitHub CIで確認する。
+検出件数は使用した脆弱性データベースの時点に依存し、日次スキャンで継続して確認する。

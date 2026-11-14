@@ -58,7 +58,7 @@ def main():
                 shutil.copy2(ROOT / name, source / name)
             shutil.copytree(ROOT / "pokemonterminal", source / "pokemonterminal",
                             ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
-            run("uv", "tool", "install", "--python", "3.10", source)
+            run("uv", "tool", "install", "--python", "3.12", source)
             tool = temporary / "tools" / "pokemon-terminal"
             python = tool / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
             # Run away from the checkout, so imports and package data come from
@@ -70,7 +70,7 @@ def main():
             requirements.write_text(snapshot, encoding="utf-8")
             if args.audit:
                 if snapshot.strip():
-                    run("uv", "tool", "run", "--python", "3.10",
+                    run("uv", "tool", "run", "--python", "3.12",
                         "--from", "pip-audit==2.10.1", "pip-audit",
                         "-r", requirements, "--no-deps", "--disable-pip",
                         "--strict", "--progress-spinner", "off")

@@ -1,24 +1,23 @@
-FROM python:3.10-slim-trixie
+FROM alpine:3.23
 COPY --from=ghcr.io/astral-sh/uv:0.13.8@sha256:5cc1805e2426484abca4ad46ea783bab281fdb225fd82d8ce6d66a81254bac85 /uv /uvx /usr/local/bin/
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    UV_PYTHON_DOWNLOADS=never \
     UV_TOOL_DIR=/opt/uv-tools \
     UV_TOOL_BIN_DIR=/usr/local/bin
 
-RUN apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
+# 通常利用と同じuvによる導入に合わせ、Alpine公式のPython 3.12を使用する。
+# パッケージの導入はuvで行うため、別パッケージのpy3-pipは追加しない。
+RUN apk upgrade --no-cache \
+    && apk add --no-cache ca-certificates 'python3~3.12' \
+    && python3 -c 'import sys; assert sys.version_info[:2] == (3, 12), sys.version'
 
 WORKDIR /app
-COPY setup.py pyproject.toml README.md LICENSE package.json requirements-test.txt requirements-container.txt /app/
+COPY setup.py pyproject.toml README.md LICENSE package.json requirements-test.txt /app/
 COPY pokemonterminal /app/pokemonterminal
 
-# Update the base image's provisioning tools; do not remove them from the scan.
-RUN uv pip install --system --upgrade -r requirements-container.txt
-
-# Install the app with the documented installer; keep all provisioning tools.
-RUN uv tool install --python 3.10 . \
+RUN uv tool install --python 3.12 . \
     && uv pip freeze --python /opt/uv-tools/pokemon-terminal/bin/python --exclude pokemon-terminal > /tmp/runtime-requirements.txt \
     && uv pip install --python /opt/uv-tools/pokemon-terminal/bin/python --constraint /tmp/runtime-requirements.txt -r requirements-test.txt
 

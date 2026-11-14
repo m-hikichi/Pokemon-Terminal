@@ -59,7 +59,7 @@ jobs:
           version: '0.13.8'
           enable-cache: false
       - name: 通常と同じuv tool環境を導入し、その依存を検査する
-        run: uv run --no-project --python 3.10 scripts/check_environment.py --audit
+        run: uv run --no-project --python 3.12 scripts/check_environment.py --audit
       - name: 検査失敗時もレポートを30日間保存する
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

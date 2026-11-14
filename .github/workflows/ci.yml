@@ -25,4 +25,4 @@ jobs:
           version: '0.13.8'
           enable-cache: false
       - name: 通常と同じuv tool環境を導入し、依存を維持してテストする
-        run: uv run --no-project --python 3.10 scripts/check_environment.py --test
+        run: uv run --no-project --python 3.12 scripts/check_environment.py --test
