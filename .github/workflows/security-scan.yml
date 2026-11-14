@@ -1,0 +1,128 @@
+name: 依存パッケージに既知の脆弱性がないか定期的に検査する
+
+on:
+  schedule:
+    # 毎日、日本時間09:00（UTC 00:00）に実行する。
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/security-scan.yml'
+      - '.github/workflows/ci.yml'
+      - '.travis.yml'
+      - '**/setup.py'
+      - '**/setup.cfg'
+      - '**/pyproject.toml'
+      - '**/requirements*.txt'
+      - '**/constraints*.txt'
+      - '**/uv.lock'
+      - '**/poetry.lock'
+      - '**/Pipfile*'
+      - '**/.python-version'
+      - 'package.json'
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - '.dockerignore'
+      # Dockerfile が COPY するアプリ・テストの変更も検査する。
+      - 'pokemonterminal/**'
+      - 'tests/**'
+      - 'README.md'
+      - 'LICENSE'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-scan-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  python:
+    name: アプリとCIが使うPythonパッケージの直接・間接依存を検査する
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 検査対象のソースコードと設定をリポジトリから取得する
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Docker環境に合わせてPython 3.10を準備する
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.10'
+
+      - name: CIのPython依存を復元し、既知の脆弱性や検査エラーがあれば失敗にする
+        # 明示したbashのpipefailにより、teeで記録しても失敗を隠さない。
+        run: |
+          set -euo pipefail
+          mkdir -p security-reports
+          python -m pip install --no-cache-dir pip-audit==2.10.1 2>&1 | tee security-reports/python.txt
+          # 検査ツールと検査対象を別の環境に置き、アプリとCI用ツールの依存を解決する。
+          python -m venv "$RUNNER_TEMP/security-target"
+          "$RUNNER_TEMP/security-target/bin/python" -m pip install --no-cache-dir --upgrade pip 2>&1 | tee -a security-reports/python.txt
+          "$RUNNER_TEMP/security-target/bin/python" -m pip install --no-cache-dir flake8 pytest --editable . 2>&1 | tee -a security-reports/python.txt
+          # 自作のeditableパッケージを除き、解決済みの直接・間接依存とバージョンを記録する。
+          "$RUNNER_TEMP/security-target/bin/python" -m pip freeze --all --exclude-editable > security-reports/python-requirements.txt
+          # 解決済みバージョンをそのまま検査し、再解決による検査対象の変化を防ぐ。
+          python -m pip_audit -r security-reports/python-requirements.txt --no-deps --disable-pip --strict --progress-spinner off 2>&1 | tee -a security-reports/python.txt
+
+      - name: Pythonの検査レポートを検査失敗時もアップロードし、30日間保存する
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: python-security-report
+          path: security-reports/python*.txt
+          if-no-files-found: warn
+          retention-days: 30
+
+  container:
+    name: テスト用Docker環境のPython・OSパッケージを検査する
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: 検査対象のソースコードと設定をリポジトリから取得する
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: テストで実際に使用するDockerイメージをビルドする
+        run: |
+          mkdir -p security-reports
+          docker compose -p pokemon-terminal-security -f docker-compose.yml build --pull test 2>&1 | tee security-reports/container-build.txt
+          docker tag pokemon-terminal-security-test pokemon-terminal-test:security-scan
+
+      - name: TrivyでPython・OSパッケージを検査し、脆弱性があれば重大度を問わず失敗にする
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: 'v0.76.2'
+          scan-type: image
+          image-ref: pokemon-terminal-test:security-scan
+          scanners: vuln
+          vuln-type: os,library
+          severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: '1'
+          format: table
+          output: security-reports/container.txt
+          timeout: 10m
+
+      - name: Docker環境の検査レポートを検査失敗時も実行ログに表示する
+        if: ${{ !cancelled() }}
+        run: |
+          if [ -f security-reports/container.txt ]; then
+            cat security-reports/container.txt
+          fi
+
+      - name: Docker環境の検査レポートを検査失敗時もアップロードし、30日間保存する
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: container-security-report
+          path: security-reports/container*.txt
+          if-no-files-found: warn
+          retention-days: 30

@@ -147,6 +147,20 @@ pokemon -e -dr
 docker compose run --rm test
 ```
 
+## 依存パッケージのセキュリティ検査
+
+[セキュリティ検査ワークフロー](.github/workflows/security-scan.yml) は、毎日日本時間09:00（UTC 00:00）に実行します。
+関連ファイルを変更するPRでも実行し、GitHub Actionsの画面から手動実行もできます。
+定期実行と手動実行は、ワークフローをデフォルトブランチへ反映した後に利用できます。
+定期実行の開始時刻はGitHub側の混雑により遅れることがあります。
+
+- Python: Dockerと同じPython 3.10でアプリとCI用の`pytest`、`flake8`をインストールし、`pip-audit`で直接・間接依存を検査します。
+- Docker: `docker-compose.yml` の `test` イメージを `--pull` 付きでビルドし、TrivyでPython・OSパッケージを検査します。
+- 既知の脆弱性は重大度・修正版の有無を問わず失敗とし、依存の取得や脆弱性データの取得に失敗した場合もジョブを失敗にします。
+- 検査レポートとDockerビルドログは、失敗時もActionsのArtifactsへアップロードし、30日間保存します（キャンセル時を除く）。
+
+依存バージョンは固定していないため、実行時点で解決されたパッケージを検査します。
+
 ## upstream更新を取り込む（fork運用）
 
 本家（`upstream`）の更新を、あなたのfork（`origin`）へ反映する手順です。
