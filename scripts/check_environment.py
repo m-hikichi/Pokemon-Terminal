@@ -10,6 +10,21 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def capture_command_stdout(command, *, cwd, environment, log):
+    """Return only command data while preserving diagnostics in the log."""
+    result = subprocess.run(
+        command, cwd=cwd, env=environment,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        text=True, encoding="utf-8", errors="replace",
+    )
+    for output in (result.stdout, result.stderr):
+        print(output, end="", flush=True)
+        log.write(output)
+    log.flush()
+    result.check_returncode()
+    return result.stdout
+
+
 def main():
     parser = argparse.ArgumentParser(__doc__)
     parser.add_argument("--audit", action="store_true")
@@ -28,10 +43,15 @@ def main():
         environment["UV_TOOL_DIR"] = str(temporary / "tools")
         environment["UV_TOOL_BIN_DIR"] = str(temporary / "bin")
         with (reports / "python.txt").open("w", encoding="utf-8") as log:
-            def run(*command, cwd=ROOT):
+            def run(*command, cwd=ROOT, stdout_only=False):
                 line = "+ " + " ".join(map(str, command)) + "\n"
                 print(line, end="", flush=True)
                 log.write(line)
+                if stdout_only:
+                    return capture_command_stdout(
+                        list(map(str, command)), cwd=cwd,
+                        environment=environment, log=log,
+                    )
                 process = subprocess.Popen(
                     list(map(str, command)), cwd=cwd, env=environment,
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -47,7 +67,7 @@ def main():
                     raise subprocess.CalledProcessError(process.returncode, command)
                 return "".join(output)
 
-            if not run("uv", "--version").startswith("uv 0.13.8 "):
+            if not run("uv", "--version", stdout_only=True).startswith("uv 0.13.8 "):
                 raise RuntimeError("Use uv 0.13.8 as documented in the README")
 
             # Only the source is local for PR verification; installation is the
@@ -66,7 +86,7 @@ def main():
             run(python, "-m", "pokemonterminal.main", "-dr", cwd=temporary)
             requirements = reports / "python-requirements.txt"
             snapshot = run("uv", "pip", "freeze", "--python", python,
-                           "--exclude", "pokemon-terminal")
+                           "--exclude", "pokemon-terminal", stdout_only=True)
             requirements.write_text(snapshot, encoding="utf-8")
             if args.audit:
                 if snapshot.strip():
@@ -83,13 +103,15 @@ def main():
                 run("uv", "pip", "install", "--python", python,
                     "--constraint", requirements, "-r", ROOT / "requirements-test.txt")
                 installed = set(run("uv", "pip", "freeze", "--python", python,
-                                    "--exclude", "pokemon-terminal").splitlines())
+                                    "--exclude", "pokemon-terminal", stdout_only=True).splitlines())
                 if not set(snapshot.splitlines()).issubset(installed):
                     raise RuntimeError("Test tools changed runtime dependency versions")
                 run(python, "-m", "flake8", ROOT, "--count",
                     "--select=E9,F63,F72,F82", "--show-source", "--statistics")
-                # Copy only the tests; the app must resolve from its installed wheel.
+                # Copy tests and their CI helper; load the app from its installed wheel.
                 shutil.copytree(ROOT / "tests", temporary / "tests")
+                shutil.copytree(ROOT / "scripts", temporary / "scripts",
+                                ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
                 run(python, "-m", "pytest", "tests", "-q", cwd=temporary)
 
 

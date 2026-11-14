@@ -23,4 +23,5 @@ RUN uv tool install --python 3.12 . \
 
 WORKDIR /checks
 COPY tests /checks/tests
+COPY scripts /checks/scripts
 CMD ["/opt/uv-tools/pokemon-terminal/bin/python", "-m", "pytest", "tests", "-q"]
