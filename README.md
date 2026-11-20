@@ -27,28 +27,33 @@ pokemon -c                   # 元に戻す
 
 ## インストール
 
-### uv（推奨）
+サポート・動作検証の対象は、このREADMEの `uv tool install --python 3.12` による導入です。
+CIはuv 0.13.8・Python 3.12のWindows・macOS・Linuxで通常の導入環境を再現します。
+pip・npm・手動配置など、ここに記載したuv以外の導入方法はサポート・検証・動作保証の対象外です。
+ホストOSやターミナルの全パッケージの安全性を保証するものではありません。
+
+### uv
 
 `pokemon` コマンドを普段使いするなら、`uv tool install` で専用の隔離環境に入れるのが手軽です。
 
-`uv` が未インストールの場合は、先にインストールします。
+`uv --version` が0.13.8でない場合は、次の手順でインストール・更新します。
 
 Windows PowerShell:
 
 ```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/0.13.8/install.ps1 | iex"
 ```
 
 macOS / Linux:
 
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
+curl -LsSf https://astral.sh/uv/0.13.8/install.sh | sh
 ```
 
 このリポジトリをGitHubから直接インストール:
 
 ```bash
-uv tool install "git+https://github.com/m-hikichi/Pokemon-Terminal.git"
+uv tool install --python 3.12 "git+https://github.com/m-hikichi/Pokemon-Terminal.git"
 ```
 
 更新する場合:
@@ -57,17 +62,16 @@ uv tool install "git+https://github.com/m-hikichi/Pokemon-Terminal.git"
 uv tool upgrade pokemon-terminal
 ```
 
-### pip
+以前の手順で導入した環境を揃え直す場合:
 
 ```bash
-pip install "git+https://github.com/m-hikichi/Pokemon-Terminal.git"
+uv tool install --force --python 3.12 "git+https://github.com/m-hikichi/Pokemon-Terminal.git"
 ```
 
 ### アンインストール
 
 ```bash
-uv tool uninstall pokemon-terminal   # uv で入れた場合
-pip uninstall pokemon-terminal       # pip で入れた場合
+uv tool uninstall pokemon-terminal
 ```
 
 ## 使い方
@@ -168,17 +172,41 @@ pokemon -e -dr
 
 ## 開発・テスト
 
-Docker でテストを実行できます（`python:3.10` ベース）。
+通常利用と同じuv tool環境へアプリをインストールした後、テスト用ツールを追加して検証します。
+追加前の実行時依存を制約として使い、追加後も依存バージョンが変化していないことを検査します。
+テストはソースツリーの外で実行し、インストール済みのアプリを読み込みます。
 
 ```bash
+uv run --no-project --python 3.12 scripts/check_environment.py --test
+```
+
+Dockerは `alpine:3.23` とAlpine公式のPython 3.12パッケージを使う開発用の補助環境です。通常利用のサポート対象は上記のuvによる導入です。
+Dockerでもuv toolでアプリをインストールし、同じ依存バージョンでテストします。
+導入にはuvを使い、追加のpipはインストールしません。検査用だけでなく、このDocker環境自体を同じ構成で使います。
+
+```bash
+docker compose build --pull --no-cache test
 docker compose run --rm test
 ```
 
-ローカルで直接実行する場合:
+## 依存パッケージのセキュリティ検査
+
+[セキュリティ検査ワークフロー](.github/workflows/security-scan.yml) は、毎日日本時間09:00（UTC 00:00）、関連ファイルのPR変更時、手動操作で実行します。
+定期実行と手動実行はデフォルトブランチへの反映後に利用できます。開始時刻は混雑により遅れることがあります。
+
+- 通常利用環境: Windows・macOS・Linuxで `uv tool install --python 3.12` を実行し、その環境にインストールされた直接・間接依存をpip-auditで検査します。PRではGit URLの代わりに同じパッケージ内容のローカルコピーを導入します。
+- 実行時依存: `setup.py` でバージョンを固定し、通常の導入・テスト・監査で共有します。ビルド依存は `pyproject.toml` に定義します。
+- Docker: 開発用イメージ全体のPython・OSパッケージをTrivyで別途検査します。この結果はuv利用者のホストOSを検査した結果ではありません。
+- 既知の脆弱性は重大度・修正版の有無を問わず失敗とし、取得・検査エラーでも失敗します。検査を通す目的でパッケージや指摘を除外しません。
+- 検査レポートと解決された依存バージョンを失敗時もArtifactsへアップロードし、30日間保存します（キャンセル時を除く）。
+
+ローカルで通常利用環境の依存を検査する場合:
 
 ```bash
-pytest -q
+uv run --no-project --python 3.12 scripts/check_environment.py --audit
 ```
+
+導入済みの古いバージョンが自動で更新されるわけではないため、`uv tool upgrade pokemon-terminal` で更新してください。
 
 ## upstream の更新を取り込む（fork 運用）
 

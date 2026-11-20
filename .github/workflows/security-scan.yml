@@ -1,0 +1,117 @@
+name: 依存パッケージに既知の脆弱性がないか定期的に検査する
+
+on:
+  schedule:
+    # 毎日、日本時間09:00（UTC 00:00）に実行する。
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/security-scan.yml'
+      - '.github/workflows/ci.yml'
+      - '.travis.yml'
+      - '**/setup.py'
+      - '**/setup.cfg'
+      - '**/pyproject.toml'
+      - '**/requirements*.txt'
+      - '**/constraints*.txt'
+      - '**/uv.lock'
+      - '**/poetry.lock'
+      - '**/Pipfile*'
+      - '**/.python-version'
+      - 'package.json'
+      - 'scripts/**'
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - '.dockerignore'
+      # Dockerfile が COPY するアプリ・テストの変更も検査する。
+      - 'pokemonterminal/**'
+      - 'tests/**'
+      - 'README.md'
+      - 'LICENSE'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-scan-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  python:
+    name: uv toolの通常利用環境の依存を検査する (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: '0.13.8'
+          enable-cache: false
+      - name: 通常と同じuv tool環境を導入し、その依存を検査する
+        run: uv run --no-project --python 3.12 scripts/check_environment.py --audit
+      - name: 検査失敗時もレポートを30日間保存する
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: python-security-report-${{ matrix.os }}
+          path: security-reports/python*.txt
+          if-no-files-found: warn
+          retention-days: 30
+
+  container:
+    name: テスト用Docker環境のPython・OSパッケージを検査する
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: 検査対象のソースコードと設定をリポジトリから取得する
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: テストで実際に使用するDockerイメージをビルドする
+        run: |
+          mkdir -p security-reports
+          docker compose -p pokemon-terminal-security -f docker-compose.yml build --pull test 2>&1 | tee security-reports/container-build.txt
+          docker tag pokemon-terminal-security-test pokemon-terminal-test:security-scan
+
+      - name: TrivyでPython・OSパッケージを検査し、脆弱性があれば重大度を問わず失敗にする
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: 'v0.76.2'
+          scan-type: image
+          image-ref: pokemon-terminal-test:security-scan
+          scanners: vuln
+          vuln-type: os,library
+          severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: '1'
+          format: table
+          output: security-reports/container.txt
+          timeout: 10m
+
+      - name: Docker環境の検査レポートを検査失敗時も実行ログに表示する
+        if: ${{ !cancelled() }}
+        run: |
+          if [ -f security-reports/container.txt ]; then
+            cat security-reports/container.txt
+          fi
+
+      - name: Docker環境の検査レポートを検査失敗時もアップロードし、30日間保存する
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: container-security-report
+          path: security-reports/container*.txt
+          if-no-files-found: warn
+          retention-days: 30
